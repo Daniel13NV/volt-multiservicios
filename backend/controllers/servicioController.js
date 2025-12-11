@@ -37,7 +37,8 @@ exports.getPendingServices = async (req, res) => {
                 c.nombre AS cliente_nombre, c.telefono, c.email
             FROM Servicios s
             LEFT JOIN Clientes c ON s.cliente_id = c.id
-            WHERE s.estado IN ('Pendiente', 'Cotizando')
+            -- ¡IMPORTANTE! Filtro de estado temporalmente COMENTADO para diagnóstico
+            -- WHERE s.estado IN ('Pendiente', 'Cotizando') 
             ORDER BY s.fecha_solicitud ASC
         `);
         res.json(rows);
@@ -47,7 +48,7 @@ exports.getPendingServices = async (req, res) => {
     }
 };
 
-// --- 3. NUEVA FUNCIÓN: Actualizar Estado del Servicio (PUT /api/servicios/:id/estado) ---
+// --- 3. Actualizar Estado del Servicio (PUT /api/servicios/:id/estado) ---
 exports.updateServiceStatus = async (req, res) => {
     const { id } = req.params;
     const { estado } = req.body; 
