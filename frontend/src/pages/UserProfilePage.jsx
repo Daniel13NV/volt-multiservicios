@@ -1,4 +1,4 @@
-// frontend/src/pages/UserProfilePage.jsx (handleLogout CORREGIDO)
+// frontend/src/pages/UserProfilePage.jsx (handleLogout SIMPLIFICADO)
 
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
@@ -9,7 +9,7 @@ const UserProfilePage = () => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const { user, logout } = useAuth(); // Obtener el estado y la función logout del contexto
+  const { user, logout } = useAuth(); 
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -26,8 +26,6 @@ const UserProfilePage = () => {
             Authorization: user.token, 
           },
         });
-        // Si el backend no devuelve un objeto completo, puede fallar aquí, 
-        // por eso se agrega un control para asegurar que profile no sea null.
         if (response.data) {
             setProfile(response.data);
         }
@@ -35,7 +33,7 @@ const UserProfilePage = () => {
         console.error("Error al cargar perfil:", err);
         setError('No se pudo cargar el perfil. Puede que la sesión haya expirado.');
         if (err.response && err.response.status === 401) {
-            logout();
+            logout(); // Esto forzará el logout y la redirección
         }
       } finally {
         setLoading(false);
@@ -47,11 +45,10 @@ const UserProfilePage = () => {
     }
   }, [user, logout]); 
 
-  // FUNCIÓN CORREGIDA
+  // FUNCIÓN SIMPLIFICADA
   const handleLogout = () => {
-    logout(); // Llama al logout del contexto (que ahora borra el carrito y tokens)
-    // Forzar la recarga de la página completa para limpiar el estado de React
-    window.location.href = '/login'; 
+    // Solo necesitamos llamar a logout, AuthContext se encarga de la limpieza y redirección a /login
+    logout(); 
   };
 
   if (loading) {
@@ -83,7 +80,6 @@ const UserProfilePage = () => {
         </div>
       </section>
 
-      {/* Aquí irían los componentes para Historial de Pedidos y Servicios */}
       <section className="profile-section history-data">
         <h2>Historial de Compras y Servicios</h2>
         <div className="history-tabs">

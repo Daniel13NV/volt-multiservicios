@@ -11,7 +11,6 @@ export const useAuth = () => useContext(AuthContext);
 // 3. Proveedor del Contexto
 export const AuthProvider = ({ children }) => {
     
-    // Función para leer el estado inicial (para evitar duplicación)
     const readInitialState = () => {
         const token = localStorage.getItem('volt_token');
         const userName = localStorage.getItem('volt_userName');
@@ -21,34 +20,36 @@ export const AuthProvider = ({ children }) => {
             return { 
                 userName, 
                 token, 
-                clientId: parseInt(clientId)
+                // CORRECCIÓN CLAVE: Asegurar que clientId sea SIEMPRE un número
+                clientId: parseInt(clientId) 
             };
         }
         return null;
     };
     
     const [user, setUser] = useState(readInitialState);
-    const [loading, setLoading] = useState(false); // Asumimos que la lectura es rápida
+    const [loading, setLoading] = useState(false); 
 
     // Función de Login (Recibe { token, userName, clientId })
     const login = (userData) => {
         localStorage.setItem('volt_token', userData.token);
         localStorage.setItem('volt_userName', userData.userName);
         localStorage.setItem('volt_clientId', userData.clientId); 
-        setUser(userData);
+        
+        // Aseguramos que el estado interno también tenga el ID como número
+        setUser({ ...userData, clientId: parseInt(userData.clientId) }); 
     };
 
-    // Función de Logout (CORRECCIÓN CLAVE: LIMPIEZA TOTAL)
+    // Función de Logout (Limpieza Completa y Redirección)
     const logout = () => {
-        // Limpia toda la información de autenticación
         localStorage.removeItem('volt_token');
         localStorage.removeItem('volt_userName');
         localStorage.removeItem('volt_clientId'); 
-        
-        // Limpia la información del carrito para evitar persistencia entre usuarios
         localStorage.removeItem('volt_cart'); 
         
         setUser(null);
+        // Forzar recarga inmediata para limpiar el Header sin depender del historial
+        window.location.href = '/login'; 
     };
 
     const isLoggedIn = !!user; 

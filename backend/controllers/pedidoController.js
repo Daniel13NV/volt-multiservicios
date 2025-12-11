@@ -2,11 +2,10 @@
 
 const { pool } = require('../config/db');
 
-// --- 1. Crear Pedido (POST /api/pedidos) - LÓGICA DE INVENTARIO Y TRANSACCIÓN ---
+// --- 1. Crear Pedido (POST /api/pedidos) ---
 exports.createOrder = async (req, res) => {
-    // NOTA: req.user.id viene del middleware protect
     const { items, total, direccion_envio } = req.body;
-    const cliente_id = req.user.id; // Usar el ID del usuario autenticado
+    const cliente_id = req.user.id; 
 
     if (!cliente_id || !items || items.length === 0 || !total) {
         return res.status(400).json({ message: 'Faltan datos requeridos para el pedido.' });
@@ -15,7 +14,7 @@ exports.createOrder = async (req, res) => {
     let connection;
     try {
         connection = await pool.getConnection();
-        await connection.beginTransaction(); // <-- 1. INICIAR TRANSACCIÓN
+        await connection.beginTransaction(); 
 
         // A. Verificar y Descontar el Stock
         for (const item of items) {
@@ -32,7 +31,6 @@ exports.createOrder = async (req, res) => {
                 throw new Error(`Stock insuficiente para ${materialRows[0].nombre}. Disponible: ${currentStock}, Solicitado: ${requiredQuantity}.`);
             }
             
-            // Descontar el stock (UPDATE)
             await connection.execute(
                 'UPDATE Materiales SET stock = stock - ? WHERE id = ?', 
                 [requiredQuantity, item.material_id]
@@ -53,16 +51,15 @@ exports.createOrder = async (req, res) => {
         });
 
         await Promise.all(detailQueries);
-        await connection.commit(); // <-- 2. CONFIRMAR TRANSACCIÓN
+        await connection.commit(); 
 
         res.status(201).json({ message: 'Pedido creado exitosamente y stock actualizado.', pedidoId });
 
     } catch (error) {
         if (connection) {
-            await connection.rollback(); // <-- 3. DESHACER (ROLLBACK) SI FALLA
+            await connection.rollback(); 
         }
         
-        // Manejo de errores específicos para el cliente (stock)
         if (error.message.includes('Stock insuficiente') || error.message.includes('no encontrado')) {
              return res.status(400).json({ message: error.message });
         }
@@ -77,7 +74,7 @@ exports.createOrder = async (req, res) => {
 
 // --- 2. Obtener Pedido por ID (GET /api/pedidos/:id) ---
 exports.getOrderById = async (req, res) => {
-    // ... (Esta función no necesita cambios críticos) ...
+    // ... (Código de getOrderById se mantiene igual) ...
     const { id } = req.params;
     try {
         const [rows] = await pool.execute(`
@@ -113,15 +110,39 @@ exports.getOrders = async (req, res) => {
             
         const [orders] = await pool.execute(query);
         
-        // CORRECCIÓN CLAVE: Mapear para asegurar que 'total' sea un número
+        // Conversión a Float para el Frontend
         const formattedOrders = orders.map(order => ({
             ...order,
-            total: parseFloat(order.total) // Convertir el total a un float
+            total: parseFloat(order.total)
         }));
         
         res.json(formattedOrders);
     } catch (error) {
         console.error('Error al obtener pedidos para admin:', error);
         res.status(500).json({ message: 'Error al obtener la lista de pedidos.' });
+    }
+};
+
+// --- 4. NUEVA FUNCIÓN: Actualizar Estado del Pedido (PUT /api/pedidos/:id/estado) ---
+exports.updateOrderStatus = async (req, res) => {
+    const { id } = req.params;
+    const { estado } = req.body; 
+
+    if (!estado) {
+        return res.status(400).json({ message: 'Se requiere el campo estado para la actualización.' });
+    }
+
+    try {
+        const query = 'UPDATE Pedidos SET estado = ? WHERE id = ?';
+        const [result] = await pool.execute(query, [estado, id]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Pedido no encontrado.' });
+        }
+
+        res.json({ message: `Estado del Pedido ${id} actualizado a ${estado}.` });
+    } catch (error) {
+        console.error('Error al actualizar estado del pedido:', error);
+        res.status(500).json({ message: 'Error interno al actualizar el estado.' });
     }
 };

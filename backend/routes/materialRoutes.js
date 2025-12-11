@@ -1,16 +1,22 @@
-// backend/routes/materialRoutes.js (ACTUALIZADO)
+// backend/routes/materialRoutes.js
+
 const express = require('express');
 const router = express.Router();
-const materialController = require('../controllers/materialController');
-const { protect, admin } = require('../middleware/authMiddleware'); // Importar Middleware
+const { getMaterials, getAllMaterialsAdmin, createMaterial, updateMaterial } = require('../controllers/materialController'); 
+const { protect, admin } = require('../middleware/authMiddleware');
 
-// Rutas Públicas (Catálogo E-commerce)
-router.get('/', materialController.getAllMaterials);
-router.get('/:id', materialController.getMaterialById);
+// 1. GET /api/materiales - Catálogo Público (sin proteger)
+router.get('/', getMaterials); 
 
-// Rutas Privadas (Administrador de Inventario)
-router.post('/', protect, admin, materialController.createMaterial);
-router.put('/:id', protect, admin, materialController.updateMaterial);
-router.delete('/:id', protect, admin, materialController.deleteMaterial);
+// --- RUTAS DE ADMINISTRACIÓN (PROTEGIDAS) ---
+
+// 2. GET /api/materiales/admin - Obtener todos para el Dashboard
+router.get('/admin', protect, admin, getAllMaterialsAdmin); 
+
+// 3. POST /api/materiales/admin - Crear nuevo material
+router.post('/admin', protect, admin, createMaterial);
+
+// 4. PUT /api/materiales/admin/:id - Actualizar material
+router.put('/admin/:id', protect, admin, updateMaterial); // <-- NUEVA RUTA DE EDICIÓN
 
 module.exports = router;

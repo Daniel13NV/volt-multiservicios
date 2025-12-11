@@ -1,4 +1,4 @@
-// frontend/src/components/Header.jsx (CORREGIDO PARA ESTADO VISIBLE)
+// frontend/src/components/Header.jsx (FINAL)
 
 import React from 'react';
 import { Link } from 'react-router-dom';
@@ -8,7 +8,7 @@ import { useCart } from '../context/CartContext';
 
 const Header = () => {
   // Obtenemos el estado de autenticación y los datos del usuario
-  const { isLoggedIn, user, logout } = useAuth();
+  const { isLoggedIn, user, logout } = useAuth(); // Obtener la función logout
   const { cartItems } = useCart(); 
 
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -28,20 +28,23 @@ const Header = () => {
         <nav className="main-nav">
           <Link to="/" className="nav-link">Inicio</Link>
           <Link to="/catalogo" className="nav-link">Tienda / Catálogo</Link>
-          <Link to="/servicios" className="nav-link">Solicitar Servicio</Link>
+          {/* El acceso a Solicitud de Servicio ya está restringido por ProtectedRoute */}
+          <Link to="/servicios" className="nav-link">Solicitar Servicio</Link> 
         </nav>
 
         <div className="auth-links">
           {showProfileLinks ? (
             // Mostrar enlace al perfil y logout si está logueado
             <>
-              {/* user.userName ya está garantizado por showProfileLinks */}
+              {/* Saludo y enlace al perfil */}
               <Link to="/perfil" className="nav-link user-profile-link">
                 Hola, {user.userName}
               </Link>
-              <Link to="/login" onClick={logout} className="nav-link auth-logout">
+              {/* El botón Cerrar Sesión usa la función logout del contexto 
+                  que limpia localStorage y fuerza la redirección. */}
+              <button onClick={logout} className="nav-link auth-logout logout-btn-text">
                 Cerrar Sesión
-              </Link>
+              </button>
             </>
           ) : (
             // Mostrar iniciar sesión si no está logueado

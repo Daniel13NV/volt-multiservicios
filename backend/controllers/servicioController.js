@@ -4,10 +4,7 @@ const { pool } = require('../config/db');
 
 // --- 1. Crear Solicitud de Servicio (POST /api/servicios) ---
 exports.createServiceRequest = async (req, res) => {
-    // Obtenemos el cliente_id directamente del token (asegurado por el middleware 'protect')
     const cliente_id = req.user.id; 
-    
-    // Obtenemos los demás datos del body
     const { tipo_servicio, descripcion_problema, fecha_programada } = req.body; 
 
     if (!tipo_servicio || !descripcion_problema) {
@@ -19,7 +16,6 @@ exports.createServiceRequest = async (req, res) => {
             INSERT INTO Servicios (cliente_id, tipo_servicio, descripcion_problema, fecha_programada)
             VALUES (?, ?, ?, ?)
         `;
-        // Usamos el cliente_id OBTENIDO DEL TOKEN
         const [result] = await pool.execute(query, [cliente_id, tipo_servicio, descripcion_problema, fecha_programada || null]);
         
         res.status(201).json({ 
@@ -48,5 +44,29 @@ exports.getPendingServices = async (req, res) => {
     } catch (error) {
         console.error('Error al obtener servicios pendientes para admin:', error);
         res.status(500).json({ message: 'Error al obtener solicitudes pendientes.' });
+    }
+};
+
+// --- 3. NUEVA FUNCIÓN: Actualizar Estado del Servicio (PUT /api/servicios/:id/estado) ---
+exports.updateServiceStatus = async (req, res) => {
+    const { id } = req.params;
+    const { estado } = req.body; 
+
+    if (!estado) {
+        return res.status(400).json({ message: 'Se requiere el campo estado para la actualización.' });
+    }
+
+    try {
+        const query = 'UPDATE Servicios SET estado = ? WHERE id = ?';
+        const [result] = await pool.execute(query, [estado, id]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Servicio no encontrado.' });
+        }
+
+        res.json({ message: `Estado del Servicio ${id} actualizado a ${estado}.` });
+    } catch (error) {
+        console.error('Error al actualizar estado del servicio:', error);
+        res.status(500).json({ message: 'Error interno al actualizar el estado.' });
     }
 };
