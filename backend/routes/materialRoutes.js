@@ -7,20 +7,24 @@ const {
     getAllMaterialsAdmin, 
     createMaterial, 
     updateMaterial, 
-    getMaterialById // <-- IMPORTADO
+    getMaterialById
 } = require('../controllers/materialController');
 const { protect, admin } = require('../middleware/authMiddleware');
 
-// 1. GET /api/materiales/:id - Detalle de Material (PÚBLICO)
-router.get('/:id', getMaterialById); // <-- RUTA PÚBLICA
+// --- RUTAS PÚBLICAS Y GENERALES (deben ir al principio) ---
 
-// 2. GET /api/materiales - Catálogo Público (sin proteger)
+// 1. GET /api/materiales - Catálogo Público (sin proteger, soporta ?q=)
 router.get('/', getMaterials); 
 
-// --- RUTAS DE ADMINISTRACIÓN (PROTEGIDAS) ---
-
-// 3. GET /api/materiales/admin - Obtener todos para el Dashboard
+// 2. GET /api/materiales/admin - Obtener todos para el Dashboard (Ruta de Admin)
 router.get('/admin', protect, admin, getAllMaterialsAdmin); 
+
+// --- RUTA CON PARÁMETRO (debe ir al final para no 'atrapar' las anteriores) ---
+
+// 3. GET /api/materiales/:id - Detalle de Material (PÚBLICO)
+router.get('/:id', getMaterialById); 
+
+// --- RUTAS DE ADMINISTRACIÓN RESTANTES ---
 
 // 4. POST /api/materiales/admin - Crear nuevo material
 router.post('/admin', protect, admin, createMaterial);

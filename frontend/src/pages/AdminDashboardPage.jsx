@@ -1,4 +1,4 @@
-// frontend/src/pages/AdminDashboardPage.jsx (FINAL - CON TABLAS DE PEDIDOS Y SERVICIOS)
+// frontend/src/pages/AdminDashboardPage.jsx (COMPLETO Y CORREGIDO con nueva estructura de Modal de Edición)
 
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
@@ -18,8 +18,8 @@ const AdminDashboardPage = () => {
     const [newMaterial, setNewMaterial] = useState({
         nombre: '', descripcion: '', precio_unitario: '', stock: '', categoria: '', imagen_url: ''
     });
-    const [editingItem, setEditingItem] = useState(null);       // Para edición de ESTADO (Pedido/Servicio)
-    const [newStatus, setNewStatus] = useState('');      
+    const [editingItem, setEditingItem] = useState(null);       // Para edición de ESTADO (Pedido/Servicio)
+    const [newStatus, setNewStatus] = useState('');      
     const [editingMaterial, setEditingMaterial] = useState(null); // Para edición de MATERIAL
 
     const token = user ? user.token : null;
@@ -129,6 +129,7 @@ const AdminDashboardPage = () => {
     const openMaterialEditModal = (material) => {
         setEditingMaterial({ 
             ...material,
+            // Convertir a string para que los inputs tipo number no fallen con valores null/undefined
             precio_unitario: String(material.precio_unitario),
             stock: String(material.stock)
         });
@@ -377,29 +378,90 @@ const AdminDashboardPage = () => {
                 </div>
             )}
 
-            {/* --- MODAL DE EDICIÓN DE MATERIALES (EXISTENTE) --- */}
+            {/* --- MODAL DE EDICIÓN DE MATERIALES (CORREGIDO CON CUADRÍCULA) --- */}
             {editingMaterial && (
                 <div className="modal-overlay">
                     <form className="modal-content" onSubmit={handleUpdateMaterial}>
                         <h3>Editar Material - ID: {editingMaterial.id}</h3>
                         
-                        <label>Nombre:</label>
-                        <input type="text" name="nombre" value={editingMaterial.nombre} onChange={handleMaterialEditChange} required />
-                        
-                        <label>Categoría:</label>
-                        <input type="text" name="categoria" value={editingMaterial.categoria} onChange={handleMaterialEditChange} required />
+                        {/* INICIO DE LA CUADRÍCULA DEL FORMULARIO CORREGIDA */}
+                        <div className="modal-form-grid"> 
 
-                        <label>Precio Unitario ($):</label>
-                        <input type="number" name="precio_unitario" value={editingMaterial.precio_unitario} onChange={handleMaterialEditChange} required />
-                        
-                        <label>Stock:</label>
-                        <input type="number" name="stock" value={editingMaterial.stock} onChange={handleMaterialEditChange} required />
-                        
-                        <label>URL de Imagen:</label>
-                        <input type="text" name="imagen_url" value={editingMaterial.imagen_url || ''} onChange={handleMaterialEditChange} />
+                            {/* Fila 1: Nombre */}
+                            <div className="full-span">
+                                <label htmlFor="nombre">Nombre (Ej: Mini Split 1 Ton):</label>
+                                <input
+                                    id="nombre"
+                                    name="nombre"
+                                    type="text"
+                                    value={editingMaterial.nombre}
+                                    onChange={handleMaterialEditChange}
+                                    required
+                                />
+                            </div>
+                            
+                            {/* Fila 2: Categoría y Precio Unitario */}
+                            <div>
+                                <label htmlFor="categoria">Categoría:</label>
+                                <input
+                                    id="categoria"
+                                    name="categoria"
+                                    type="text"
+                                    value={editingMaterial.categoria}
+                                    onChange={handleMaterialEditChange}
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="precio_unitario">Precio Unitario ($):</label>
+                                <input
+                                    id="precio_unitario"
+                                    name="precio_unitario"
+                                    type="number"
+                                    step="0.01"
+                                    value={editingMaterial.precio_unitario}
+                                    onChange={handleMaterialEditChange}
+                                    required
+                                />
+                            </div>
 
-                        <label>Descripción:</label>
-                        <textarea name="descripcion" value={editingMaterial.descripcion} onChange={handleMaterialEditChange} />
+                            {/* Fila 3: Stock */}
+                            <div className="full-span">
+                                <label htmlFor="stock">Stock Inicial:</label>
+                                <input
+                                    id="stock"
+                                    name="stock"
+                                    type="number"
+                                    value={editingMaterial.stock}
+                                    onChange={handleMaterialEditChange}
+                                    required
+                                />
+                            </div>
+
+                            {/* Fila 4: URL de Imagen (Ocupa todo el ancho) */}
+                            <div className="full-span">
+                                <label htmlFor="imagen_url">URL de Imagen (Opcional):</label>
+                                <input
+                                    id="imagen_url"
+                                    name="imagen_url"
+                                    type="text"
+                                    value={editingMaterial.imagen_url || ''}
+                                    onChange={handleMaterialEditChange}
+                                />
+                            </div>
+
+                            {/* Fila 5: Descripción Detallada (Textarea ancho) */}
+                            <div className="full-span">
+                                <label htmlFor="descripcion">Descripción detallada (Medidas, Especificaciones):</label>
+                                <textarea
+                                    id="descripcion"
+                                    name="descripcion"
+                                    value={editingMaterial.descripcion}
+                                    onChange={handleMaterialEditChange}
+                                />
+                            </div>
+
+                        </div> {/* FIN de modal-form-grid */}
 
                         <div className="modal-actions" style={{ marginTop: '20px' }}>
                             <button type="submit" className="btn btn-primary">Guardar Cambios</button>

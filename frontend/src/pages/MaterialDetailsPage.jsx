@@ -1,4 +1,4 @@
-// frontend/src/pages/MaterialDetailsPage.jsx (CORREGIDO para RUTA PÚBLICA)
+// frontend/src/pages/MaterialDetailsPage.jsx (CORREGIDO)
 
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
@@ -8,7 +8,10 @@ import { useCart } from '../context/CartContext';
 
 const MaterialDetailsPage = () => {
     const { id } = useParams();
-    const { addItemToCart } = useCart();
+    
+    // CORRECCIÓN CLAVE: Desestructurar addItemToCart desde useCart()
+    const { addItemToCart } = useCart(); 
+    
     const [material, setMaterial] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -17,7 +20,7 @@ const MaterialDetailsPage = () => {
     useEffect(() => {
         const fetchMaterial = async () => {
             try {
-                // CORRECCIÓN CLAVE: Usamos la nueva ruta pública /api/materiales/:id
+                // Usamos la ruta pública /api/materiales/:id
                 const url = `${API_ROUTES.MATERIALS}/${id}`;
                 const response = await axios.get(url);
                 
@@ -25,7 +28,6 @@ const MaterialDetailsPage = () => {
 
             } catch (err) {
                 console.error("Error al obtener detalles del material:", err);
-                // Si el servidor devuelve 404, mostramos un error más claro
                 const errorMessage = err.response && err.response.status === 404 
                     ? 'Producto no encontrado o agotado.'
                     : 'Error al cargar la información del producto.';
@@ -39,7 +41,8 @@ const MaterialDetailsPage = () => {
     }, [id]);
 
     const handleAddToCart = () => {
-        if (material) {
+        // CORRECCIÓN CLAVE: Verificamos que addItemToCart existe
+        if (material && addItemToCart) { 
             addItemToCart(material, quantity);
             alert(`${quantity} ${material.nombre} añadido al carrito.`);
         }
@@ -53,10 +56,14 @@ const MaterialDetailsPage = () => {
         return <div className="error-message">{error}</div>;
     }
 
+    // Si el material es nulo después de cargar (por ejemplo, 404), mostramos un mensaje final
+    if (!material) {
+         return <div className="error-message">Detalles del producto no disponibles.</div>;
+    }
+
     return (
         <div className="material-details-page">
             <div className="product-card-details">
-                {/* Muestra imagen o placeholder */}
                 <img src={material.imagen_url || '/placeholder.png'} alt={material.nombre} className="product-image-details" />
                 
                 <div className="product-info-details">
