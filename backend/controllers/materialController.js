@@ -2,10 +2,23 @@
 
 const { pool } = require('../config/db');
 
-// --- 1. Obtener Materiales (Público) ---
+// --- 1. Obtener Materiales (Público, con filtro/búsqueda) ---
 exports.getMaterials = async (req, res) => {
+    const { q } = req.query; 
+
+    let query = 'SELECT * FROM Materiales WHERE stock > 0';
+    let params = [];
+
+    if (q) {
+        const searchPattern = `%${q}%`;
+        query += ' AND (nombre LIKE ? OR descripcion LIKE ? OR categoria LIKE ?)';
+        params.push(searchPattern, searchPattern, searchPattern);
+    }
+    
+    query += ' ORDER BY nombre ASC'; 
+
     try {
-        const [rows] = await pool.execute('SELECT * FROM Materiales WHERE stock > 0');
+        const [rows] = await pool.execute(query, params);
         res.json(rows);
     } catch (error) {
         console.error('Error al obtener materiales para catálogo:', error);
@@ -49,12 +62,11 @@ exports.createMaterial = async (req, res) => {
     }
 };
 
-// --- 4. NUEVA FUNCIÓN: Actualizar Material (Admin) ---
+// --- 4. Actualizar Material (Admin) ---
 exports.updateMaterial = async (req, res) => {
     const { id } = req.params;
     const { nombre, descripcion, precio_unitario, stock, categoria, imagen_url } = req.body;
 
-    // Validación básica
     if (!nombre || !precio_unitario || !stock || !categoria) {
         return res.status(400).json({ message: 'Faltan campos obligatorios para la actualización.' });
     }
@@ -88,5 +100,28 @@ exports.updateMaterial = async (req, res) => {
     } catch (error) {
         console.error('Error al actualizar material:', error);
         res.status(500).json({ message: 'Error interno del servidor al actualizar el material.' });
+    }
+};
+
+// --- 5. NUEVA FUNCIÓN: Obtener un Material por ID (GET /api/materiales/:id) - RUTA PÚBLICA
+exports.getMaterialById = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const [rows] = await pool.execute('SELECT * FROM Materiales WHERE id = ? AND stock > 0', [id]);
+
+        if (rows.length === 0) {
+            return res.status(404).json({ message: 'Material no encontrado o agotado.' });
+        }
+        
+        // Asegurar que el precio sea float para el frontend
+        const material = {
+            ...rows[0],
+            precio_unitario: parseFloat(rows[0].precio_unitario)
+        };
+        
+        res.json(material);
+    } catch (error) {
+        console.error('Error al obtener material por ID:', error);
+        res.status(500).json({ message: 'Error al cargar el detalle del material.' });
     }
 };

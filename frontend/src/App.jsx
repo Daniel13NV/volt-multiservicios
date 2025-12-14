@@ -7,7 +7,8 @@ import Footer from './components/Footer';
 import ProtectedRoute from './components/ProtectedRoute';
 import HomePage from './pages/HomePage'; 
 import CatalogPage from './pages/CatalogPage'; 
-import ServiceRequestPage from './pages/ServiceRequestPage'; // <--- PAGINA DE SERVICIOS
+import MaterialDetailsPage from './pages/MaterialDetailsPage'; // <-- NUEVA PÁGINA
+import ServiceRequestPage from './pages/ServiceRequestPage'; 
 import LoginPage from './pages/LoginPage';
 import UserProfilePage from './pages/UserProfilePage';
 import CartPage from './pages/CartPage'; 
@@ -25,47 +26,18 @@ function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/catalogo" element={<CatalogPage />} />
             
-            {/* RUTA DE SERVICIOS AHORA PROTEGIDA */}
-            <Route 
-                path="/servicios" 
-                element={
-                    <ProtectedRoute>
-                        <ServiceRequestPage />
-                    </ProtectedRoute>
-                } 
-            /> {/* <--- CORRECCIÓN APLICADA */}
+            {/* NUEVA RUTA: DETALLES DEL MATERIAL */}
+            <Route path="/materiales/:id" element={<MaterialDetailsPage />} />
             
+            {/* RUTAS PROTEGIDAS (existentes) */}
+            <Route path="/servicios" element={<ProtectedRoute><ServiceRequestPage /></ProtectedRoute>} /> 
             <Route path="/login" element={<LoginPage />} />
             <Route path="/carrito" element={<CartPage />} />
             
-            {/* RUTAS PROTEGIDAS PARA EL CLIENTE REGULAR */}
-            <Route 
-                path="/perfil" 
-                element={
-                    <ProtectedRoute>
-                        <UserProfilePage />
-                    </ProtectedRoute>
-                } 
-            />
-            
-            <Route 
-                path="/checkout" 
-                element={
-                    <ProtectedRoute>
-                        <CheckoutPage />
-                    </ProtectedRoute>
-                } 
-            />
+            <Route path="/perfil" element={<ProtectedRoute><UserProfilePage /></ProtectedRoute>} />
+            <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
 
-            {/* RUTA PROTEGIDA PARA ADMINISTRADORES */}
-            <Route 
-                path="/dashboard" 
-                element={
-                    <ProtectedRoute adminOnly={true}> 
-                        <AdminDashboardPage />
-                    </ProtectedRoute>
-                } 
-            />
+            <Route path="/dashboard" element={<ProtectedRoute adminOnly={true}><AdminDashboardPage /></ProtectedRoute>} />
           </Routes>
         </main>
         

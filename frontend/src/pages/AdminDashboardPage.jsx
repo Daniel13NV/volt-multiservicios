@@ -1,4 +1,4 @@
-// frontend/src/pages/AdminDashboardPage.jsx (ACTUALIZADO CON MODAL DE EDICIÓN DE MATERIALES)
+// frontend/src/pages/AdminDashboardPage.jsx (FINAL - CON TABLAS DE PEDIDOS Y SERVICIOS)
 
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
@@ -61,8 +61,7 @@ const AdminDashboardPage = () => {
         fetchAdminData();
     }, [token]);
 
-    // --- MANEJO DE FORMULARIO DE CREACIÓN DE MATERIAL ---
-
+    // --- MANEJO DE FORMULARIO DE CREACIÓN DE MATERIAL (Existente) ---
     const handleMaterialChange = (e) => {
         setNewMaterial({ ...newMaterial, [e.target.name]: e.target.value });
     };
@@ -126,10 +125,8 @@ const AdminDashboardPage = () => {
     };
 
 
-    // --- NUEVAS FUNCIONES: EDICIÓN DE MATERIALES ---
-    
+    // --- MANEJO DE MODAL DE EDICIÓN DE MATERIALES (EXISTENTE) ---
     const openMaterialEditModal = (material) => {
-        // Aseguramos que los números sean strings para el input (lo pide React)
         setEditingMaterial({ 
             ...material,
             precio_unitario: String(material.precio_unitario),
@@ -148,23 +145,20 @@ const AdminDashboardPage = () => {
     const handleUpdateMaterial = async (e) => {
         e.preventDefault();
 
-        // Creamos un objeto limpio sin el ID y con números convertidos
         const { id, ...updatedData } = editingMaterial;
         
-        // Convertir de nuevo a número para el backend
         updatedData.precio_unitario = parseFloat(updatedData.precio_unitario);
         updatedData.stock = parseInt(updatedData.stock);
 
         try {
             const config = { headers: { Authorization: user.token } };
             
-            // Llama a la nueva ruta PUT /api/materiales/admin/:id
             await axios.put(`${API_ROUTES.MATERIALS}/admin/${id}`, updatedData, config);
             
             alert(`Material '${updatedData.nombre}' actualizado exitosamente.`);
             
             closeMaterialEditModal();
-            fetchAdminData(); // Recarga la lista
+            fetchAdminData(); 
             
         } catch (error) {
             console.error('Error al actualizar material:', error.response || error);
@@ -181,7 +175,6 @@ const AdminDashboardPage = () => {
         return <div className="error-message">Error: {error}</div>;
     }
     
-    // Opciones de estado dinámicas para el modal
     const statusOptions = editingItem?.cliente_nombre 
         ? ['Pendiente', 'Procesando', 'Enviado', 'Entregado', 'Cancelado']
         : ['Pendiente', 'Cotizando', 'En Proceso', 'Completado', 'Cancelado'];
@@ -270,17 +263,89 @@ const AdminDashboardPage = () => {
                     </section>
                 )}
                 
-                {/* --- CONTENIDO PESTAÑA: PEDIDOS E-COMMERCE --- */}
+                {/* --- CONTENIDO PESTAÑA: PEDIDOS E-COMMERCE (REINSERTADO) --- */}
                 {activeTab === 'orders' && (
                     <section className="admin-orders-table">
-                        {/* ... (Tu código de tabla de pedidos aquí) ... */}
+                        <h2>Pedidos Recientes</h2>
+                        {orders.length === 0 ? (
+                            <p>No hay pedidos pendientes.</p>
+                        ) : (
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>ID Pedido</th>
+                                        <th>Cliente</th>
+                                        <th>Total</th>
+                                        <th>Fecha</th>
+                                        <th>Estado</th>
+                                        <th>Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {orders.map(order => (
+                                        <tr key={order.id}>
+                                            <td>{order.id}</td>
+                                            <td>{order.cliente_nombre || 'Invitado'}</td>
+                                            <td>${order.total.toFixed(2)}</td>
+                                            <td>{new Date(order.fecha_pedido).toLocaleDateString()}</td>
+                                            <td>{order.estado}</td>
+                                            <td>
+                                                <button 
+                                                    onClick={() => openEditModal(order)} 
+                                                    className="btn btn-primary btn-small"
+                                                >
+                                                    Ver/Procesar
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
                     </section>
                 )}
 
-                {/* --- CONTENIDO PESTAÑA: SOLICITUDES DE SERVICIO --- */}
+                {/* --- CONTENIDO PESTAÑA: SOLICITUDES DE SERVICIO (REINSERTADO) --- */}
                 {activeTab === 'services' && (
                     <section className="admin-services-table">
-                        {/* ... (Tu código de tabla de servicios aquí) ... */}
+                        <h2>Leads de Servicio Pendientes</h2>
+                        {services.length === 0 ? (
+                            <p>No hay solicitudes de servicio pendientes.</p>
+                        ) : (
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Servicio</th>
+                                        <th>Descripción</th>
+                                        <th>Cliente</th>
+                                        <th>Teléfono</th>
+                                        <th>Estado</th>
+                                        <th>Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {services.map(service => (
+                                        <tr key={service.id}>
+                                            <td>{service.id}</td>
+                                            <td>{service.tipo_servicio}</td>
+                                            <td>{service.descripcion_problema.substring(0, 50)}...</td>
+                                            <td>{service.cliente_nombre || 'Invitado'}</td>
+                                            <td>{service.telefono || 'N/A'}</td>
+                                            <td>{service.estado}</td>
+                                            <td>
+                                                <button 
+                                                    onClick={() => openEditModal(service)} 
+                                                    className="btn btn-primary btn-small"
+                                                >
+                                                    Actualizar
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
                     </section>
                 )}
             </div>
@@ -312,7 +377,7 @@ const AdminDashboardPage = () => {
                 </div>
             )}
 
-            {/* --- NUEVO: MODAL DE EDICIÓN DE MATERIALES (EDICIÓN DE REGISTRO) --- */}
+            {/* --- MODAL DE EDICIÓN DE MATERIALES (EXISTENTE) --- */}
             {editingMaterial && (
                 <div className="modal-overlay">
                     <form className="modal-content" onSubmit={handleUpdateMaterial}>

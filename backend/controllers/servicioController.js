@@ -37,8 +37,7 @@ exports.getPendingServices = async (req, res) => {
                 c.nombre AS cliente_nombre, c.telefono, c.email
             FROM Servicios s
             LEFT JOIN Clientes c ON s.cliente_id = c.id
-            -- ¡IMPORTANTE! Filtro de estado temporalmente COMENTADO para diagnóstico
-            -- WHERE s.estado IN ('Pendiente', 'Cotizando') 
+            WHERE s.estado IN ('Pendiente', 'Cotizando')
             ORDER BY s.fecha_solicitud ASC
         `);
         res.json(rows);
@@ -69,5 +68,26 @@ exports.updateServiceStatus = async (req, res) => {
     } catch (error) {
         console.error('Error al actualizar estado del servicio:', error);
         res.status(500).json({ message: 'Error interno al actualizar el estado.' });
+    }
+};
+
+// --- 4. NUEVA FUNCIÓN: Obtener Servicios por Cliente (GET /api/servicios/mi-historial) ---
+exports.getUserServices = async (req, res) => {
+    const cliente_id = req.user.id; 
+
+    try {
+        const query = `
+            SELECT 
+                s.id, s.tipo_servicio, s.descripcion_problema, s.fecha_solicitud, s.estado
+            FROM Servicios s
+            WHERE s.cliente_id = ?
+            ORDER BY s.fecha_solicitud DESC`;
+            
+        const [services] = await pool.execute(query, [cliente_id]);
+        
+        res.json(services);
+    } catch (error) {
+        console.error('Error al obtener historial de servicios del usuario:', error);
+        res.status(500).json({ message: 'Error al obtener el historial de servicios.' });
     }
 };

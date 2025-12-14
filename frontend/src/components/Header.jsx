@@ -1,4 +1,4 @@
-// frontend/src/components/Header.jsx (FINAL)
+// frontend/src/components/Header.jsx (CORREGIDO PARA NAVEGACIÓN DE ADMIN)
 
 import React from 'react';
 import { Link } from 'react-router-dom';
@@ -8,14 +8,17 @@ import { useCart } from '../context/CartContext';
 
 const Header = () => {
   // Obtenemos el estado de autenticación y los datos del usuario
-  const { isLoggedIn, user, logout } = useAuth(); // Obtener la función logout
+  const { isLoggedIn, user, logout } = useAuth();
   const { cartItems } = useCart(); 
 
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   // Determina si mostrar el enlace de perfil o el enlace de login
-  // Usamos isLoggedIn Y user?.userName para mayor seguridad
   const showProfileLinks = isLoggedIn && user && user.userName;
+
+  // CORRECCIÓN CLAVE: Determinar la ruta y el nombre del enlace
+  const profileRoute = user && user.clientId === 1 ? '/dashboard' : '/perfil';
+  const profileLinkText = user && user.clientId === 1 ? 'Dashboard' : 'Perfil';
 
   // Renderizamos el Header
   return (
@@ -28,20 +31,18 @@ const Header = () => {
         <nav className="main-nav">
           <Link to="/" className="nav-link">Inicio</Link>
           <Link to="/catalogo" className="nav-link">Tienda / Catálogo</Link>
-          {/* El acceso a Solicitud de Servicio ya está restringido por ProtectedRoute */}
-          <Link to="/servicios" className="nav-link">Solicitar Servicio</Link> 
+          <Link to="/servicios" className="nav-link">Solicitar Servicio</Link>
         </nav>
 
         <div className="auth-links">
           {showProfileLinks ? (
-            // Mostrar enlace al perfil y logout si está logueado
+            // Mostrar enlace al perfil/Dashboard y logout si está logueado
             <>
-              {/* Saludo y enlace al perfil */}
-              <Link to="/perfil" className="nav-link user-profile-link">
-                Hola, {user.userName}
+              {/* Saludo y enlace dinámico */}
+              <Link to={profileRoute} className="nav-link user-profile-link">
+                Hola, {user.userName} ({profileLinkText}) {/* <--- Cambia "Perfil" por "Dashboard" */}
               </Link>
-              {/* El botón Cerrar Sesión usa la función logout del contexto 
-                  que limpia localStorage y fuerza la redirección. */}
+              {/* El botón Cerrar Sesión usa la función logout del contexto */}
               <button onClick={logout} className="nav-link auth-logout logout-btn-text">
                 Cerrar Sesión
               </button>

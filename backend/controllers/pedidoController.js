@@ -74,7 +74,6 @@ exports.createOrder = async (req, res) => {
 
 // --- 2. Obtener Pedido por ID (GET /api/pedidos/:id) ---
 exports.getOrderById = async (req, res) => {
-    // ... (Código de getOrderById se mantiene igual) ...
     const { id } = req.params;
     try {
         const [rows] = await pool.execute(`
@@ -110,7 +109,6 @@ exports.getOrders = async (req, res) => {
             
         const [orders] = await pool.execute(query);
         
-        // Conversión a Float para el Frontend
         const formattedOrders = orders.map(order => ({
             ...order,
             total: parseFloat(order.total)
@@ -123,7 +121,7 @@ exports.getOrders = async (req, res) => {
     }
 };
 
-// --- 4. NUEVA FUNCIÓN: Actualizar Estado del Pedido (PUT /api/pedidos/:id/estado) ---
+// --- 4. Actualizar Estado del Pedido (PUT /api/pedidos/:id/estado) ---
 exports.updateOrderStatus = async (req, res) => {
     const { id } = req.params;
     const { estado } = req.body; 
@@ -144,5 +142,31 @@ exports.updateOrderStatus = async (req, res) => {
     } catch (error) {
         console.error('Error al actualizar estado del pedido:', error);
         res.status(500).json({ message: 'Error interno al actualizar el estado.' });
+    }
+};
+
+// --- 5. NUEVA FUNCIÓN: Obtener Pedidos por Cliente (GET /api/pedidos/mi-historial) ---
+exports.getUserOrders = async (req, res) => {
+    const cliente_id = req.user.id; 
+
+    try {
+        const query = `
+            SELECT 
+                p.id, p.total, p.fecha_pedido, p.estado
+            FROM Pedidos p
+            WHERE p.cliente_id = ?
+            ORDER BY p.fecha_pedido DESC`;
+            
+        const [orders] = await pool.execute(query, [cliente_id]);
+        
+        const formattedOrders = orders.map(order => ({
+            ...order,
+            total: parseFloat(order.total)
+        }));
+        
+        res.json(formattedOrders);
+    } catch (error) {
+        console.error('Error al obtener historial de pedidos del usuario:', error);
+        res.status(500).json({ message: 'Error al obtener el historial de compras.' });
     }
 };
