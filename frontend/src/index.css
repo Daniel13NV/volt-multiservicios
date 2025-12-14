@@ -983,3 +983,15 @@ tr:nth-child(even) {
     border: 1px solid #ccc;
     border-radius: 4px;
 }
+/* frontend/src/index.css (Añadir al final o en la sección de botones) */
+/* ... (todo tu código CSS anterior) ... */
+
+
+/* --- NUEVO ESTILO PARA EL BOTÓN DE ELIMINAR --- */
+.btn-delete {
+    background-color: #dc3545; /* Rojo de peligro */
+}
+
+.btn-delete:hover {
+    background-color: #c82333;
+}

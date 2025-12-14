@@ -1,4 +1,4 @@
-// frontend/src/pages/AdminDashboardPage.jsx (COMPLETO Y CORREGIDO con nueva estructura de Modal de Edición)
+// frontend/src/pages/AdminDashboardPage.jsx (COMPLETO y CORREGIDO con subida de imagen)
 
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
@@ -16,11 +16,12 @@ const AdminDashboardPage = () => {
 
     // Estados para Creación y Edición
     const [newMaterial, setNewMaterial] = useState({
-        nombre: '', descripcion: '', precio_unitario: '', stock: '', categoria: '', imagen_url: ''
+        nombre: '', descripcion: '', precio_unitario: '', stock: '', categoria: '', 
+        imagen: null // <--- CAMBIO CLAVE: Ahora guarda el objeto File
     });
-    const [editingItem, setEditingItem] = useState(null);       // Para edición de ESTADO (Pedido/Servicio)
+    const [editingItem, setEditingItem] = useState(null);     
     const [newStatus, setNewStatus] = useState('');      
-    const [editingMaterial, setEditingMaterial] = useState(null); // Para edición de MATERIAL
+    const [editingMaterial, setEditingMaterial] = useState(null); 
 
     const token = user ? user.token : null;
 
@@ -45,7 +46,7 @@ const AdminDashboardPage = () => {
             const serviceResponse = await axios.get(API_ROUTES.SERVICES + '/pendientes', config);
             setServices(serviceResponse.data);
 
-            // 3. Obtener TODOS los Materiales
+            // 3. Obtener TODOS los Materiales (incluidos inactivos)
             const materialsResponse = await axios.get(API_ROUTES.MATERIALS + '/admin', config);
             setMaterials(materialsResponse.data);
 
@@ -61,30 +62,55 @@ const AdminDashboardPage = () => {
         fetchAdminData();
     }, [token]);
 
-    // --- MANEJO DE FORMULARIO DE CREACIÓN DE MATERIAL (Existente) ---
+    // --- MANEJO DE FORMULARIO DE CREACIÓN DE MATERIAL ---
     const handleMaterialChange = (e) => {
-        setNewMaterial({ ...newMaterial, [e.target.name]: e.target.value });
+        const { name, value, files } = e.target;
+        
+        if (name === 'imagen' && files) {
+            // Si el campo es la imagen, guardamos el objeto File (files[0])
+            setNewMaterial({ ...newMaterial, imagen: files[0] });
+        } else {
+            // Para el resto de campos (texto, números)
+            setNewMaterial({ ...newMaterial, [name]: value });
+        }
     };
 
     const handleCreateMaterial = async (e) => {
         e.preventDefault();
         
+        // --- CAMBIO CLAVE: Usar FormData para enviar archivos ---
+        const formData = new FormData();
+        formData.append('nombre', newMaterial.nombre);
+        formData.append('descripcion', newMaterial.descripcion);
+        formData.append('precio_unitario', newMaterial.precio_unitario);
+        formData.append('stock', newMaterial.stock);
+        formData.append('categoria', newMaterial.categoria);
+        
+        // Añadir el archivo de imagen si existe (campo 'imagen' debe coincidir con Multer)
+        if (newMaterial.imagen) {
+            formData.append('imagen', newMaterial.imagen); 
+        } else {
+            // Si no se selecciona imagen, enviamos un valor vacío para que el controlador lo ignore
+            formData.append('imagen', ''); 
+        }
+
         try {
+            // No especificamos Content-Type, FormData y axios lo manejan
             const config = { headers: { Authorization: user.token } };
             
-            await axios.post(API_ROUTES.MATERIALS + '/admin', newMaterial, config);
+            await axios.post(API_ROUTES.MATERIALS + '/admin', formData, config);
             
             alert(`Material '${newMaterial.nombre}' agregado exitosamente.`);
             
             // Limpiar formulario y recargar datos
             setNewMaterial({
-                nombre: '', descripcion: '', precio_unitario: '', stock: '', categoria: '', imagen_url: ''
+                nombre: '', descripcion: '', precio_unitario: '', stock: '', categoria: '', imagen: null // Reiniciar imagen a null
             });
             fetchAdminData(); 
 
         } catch (error) {
             console.error('Error al crear material:', error.response || error);
-            alert('Fallo al agregar el material. Revise que los campos sean válidos.');
+            alert('Fallo al agregar el material. Revise que los campos sean válidos y el tamaño de la imagen.');
         }
     };
 
@@ -129,7 +155,6 @@ const AdminDashboardPage = () => {
     const openMaterialEditModal = (material) => {
         setEditingMaterial({ 
             ...material,
-            // Convertir a string para que los inputs tipo number no fallen con valores null/undefined
             precio_unitario: String(material.precio_unitario),
             stock: String(material.stock)
         });
@@ -164,6 +189,43 @@ const AdminDashboardPage = () => {
         } catch (error) {
             console.error('Error al actualizar material:', error.response || error);
             alert('Fallo al actualizar el material. Revise la consola del navegador.');
+        }
+    };
+
+    // --- FUNCIÓN: INACTIVAR/ACTIVAR MATERIAL (Soft Delete) ---
+    const handleToggleActive = async (materialId, materialNombre, currentMaterial) => {
+        const currentActiveStatus = currentMaterial.activo; 
+        const newState = currentActiveStatus === 1 ? 0 : 1;
+        const action = newState === 0 ? 'inactivar' : 'activar';
+        
+        if (!window.confirm(`¿Estás seguro de que deseas ${action} el material: ${materialNombre} (ID: ${materialId})? Esto afectará su visibilidad en el catálogo.`)) {
+            return;
+        }
+
+        try {
+            const config = { headers: { Authorization: user.token } };
+            
+            if (newState === 0) {
+                // Para INACTIVAR, usamos el endpoint DELETE (Soft Delete)
+                await axios.delete(`${API_ROUTES.MATERIALS}/admin/${materialId}`, config);
+            } else {
+                // Para ACTIVAR, usamos el endpoint PUT/Actualización
+                const updatedData = { 
+                    ...currentMaterial,
+                    activo: 1, 
+                };
+                
+                await axios.put(`${API_ROUTES.MATERIALS}/admin/${materialId}`, updatedData, config);
+            }
+            
+            alert(`Material '${materialNombre}' ${action} exitosamente.`);
+            
+            fetchAdminData(); 
+
+        } catch (error) {
+            console.error('Error al cambiar estado del material:', error.response || error);
+            const errorMessage = error.response?.data?.message || `Fallo al ${action} el material.`;
+            alert(errorMessage);
         }
     };
 
@@ -214,12 +276,30 @@ const AdminDashboardPage = () => {
                     <section className="admin-materials-management">
                         <h2>Añadir Nuevo Material al Inventario</h2>
                         
+                        {/* FORMULARIO DE CREACIÓN (MODIFICADO) */}
                         <form onSubmit={handleCreateMaterial} className="material-form-grid">
+                            
+                            {/* Campos de texto */}
                             <input type="text" name="nombre" placeholder="Nombre (Ej: Mini Split 1 Ton)" value={newMaterial.nombre} onChange={handleMaterialChange} required />
                             <input type="text" name="categoria" placeholder="Categoría (Ej: Climatización)" value={newMaterial.categoria} onChange={handleMaterialChange} required />
                             <input type="number" name="precio_unitario" placeholder="Precio ($)" value={newMaterial.precio_unitario} onChange={handleMaterialChange} required />
                             <input type="number" name="stock" placeholder="Stock Inicial" value={newMaterial.stock} onChange={handleMaterialChange} required />
-                            <input type="text" name="imagen_url" placeholder="URL de Imagen (Opcional)" value={newMaterial.imagen_url} onChange={handleMaterialChange} />
+                            
+                            {/* --- CAMBIO CLAVE: INPUT FILE --- */}
+                            <div style={{ gridColumn: 'span 2' }}> 
+                                <label htmlFor="imagen" style={{ display: 'block', marginBottom: '5px' }}>Subir Imagen del Producto (Máx 5MB):</label>
+                                <input 
+                                    type="file" 
+                                    id="imagen" 
+                                    name="imagen" 
+                                    accept="image/*" 
+                                    onChange={handleMaterialChange} 
+                                    className="input-file-custom" // Puedes añadir un estilo si quieres personalizar el input file
+                                />
+                                {newMaterial.imagen && <p style={{ fontSize: '0.9em', color: '#666', marginTop: '5px' }}>Archivo seleccionado: **{newMaterial.imagen.name}**</p>}
+                            </div>
+                            {/* ----------------------------------- */}
+
                             <textarea name="descripcion" placeholder="Descripción detallada" value={newMaterial.descripcion} onChange={handleMaterialChange} />
                             
                             <button type="submit" className="btn btn-primary btn-full-width">Añadir Material</button>
@@ -237,6 +317,7 @@ const AdminDashboardPage = () => {
                                         <th>Categoría</th>
                                         <th>Stock</th>
                                         <th>Precio</th>
+                                        <th>Estado</th> 
                                         <th>Acción</th>
                                     </tr>
                                 </thead>
@@ -248,13 +329,28 @@ const AdminDashboardPage = () => {
                                             <td>{mat.categoria}</td>
                                             <td style={{ fontWeight: mat.stock <= 0 ? 'bold' : 'normal', color: mat.stock <= 0 ? 'red' : 'green' }}>{mat.stock}</td>
                                             <td>${parseFloat(mat.precio_unitario).toFixed(2)}</td>
+                                            
+                                            <td>
+                                                <span style={{ color: mat.activo === 1 ? 'green' : 'red', fontWeight: 'bold' }}>
+                                                    {mat.activo === 1 ? 'Activo' : 'Inactivo'}
+                                                </span>
+                                            </td>
+
                                             <td>
                                                 <button 
                                                     onClick={() => openMaterialEditModal(mat)} 
                                                     className="btn btn-default btn-small"
+                                                    style={{ marginRight: '10px' }}
                                                 >
                                                     Editar
                                                 </button> 
+                                                
+                                                <button
+                                                    onClick={() => handleToggleActive(mat.id, mat.nombre, mat)}
+                                                    className={`btn btn-small ${mat.activo === 1 ? 'btn-delete' : 'btn-primary'}`}
+                                                >
+                                                    {mat.activo === 1 ? 'Inactivar' : 'Activar'}
+                                                </button>
                                             </td>
                                         </tr>
                                     ))}
@@ -384,7 +480,6 @@ const AdminDashboardPage = () => {
                     <form className="modal-content" onSubmit={handleUpdateMaterial}>
                         <h3>Editar Material - ID: {editingMaterial.id}</h3>
                         
-                        {/* INICIO DE LA CUADRÍCULA DEL FORMULARIO CORREGIDA */}
                         <div className="modal-form-grid"> 
 
                             {/* Fila 1: Nombre */}
@@ -439,6 +534,7 @@ const AdminDashboardPage = () => {
                             </div>
 
                             {/* Fila 4: URL de Imagen (Ocupa todo el ancho) */}
+                            {/* NOTA: Mantendremos la edición por URL simple aquí, la subida de archivos es más compleja de integrar en la edición PUT */}
                             <div className="full-span">
                                 <label htmlFor="imagen_url">URL de Imagen (Opcional):</label>
                                 <input
@@ -456,12 +552,12 @@ const AdminDashboardPage = () => {
                                 <textarea
                                     id="descripcion"
                                     name="descripcion"
-                                    value={editingMaterial.descripcion}
+                                    value={editingMaterial.descripcion || ''}
                                     onChange={handleMaterialEditChange}
                                 />
                             </div>
 
-                        </div> {/* FIN de modal-form-grid */}
+                        </div>
 
                         <div className="modal-actions" style={{ marginTop: '20px' }}>
                             <button type="submit" className="btn btn-primary">Guardar Cambios</button>

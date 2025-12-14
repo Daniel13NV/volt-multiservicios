@@ -1,4 +1,4 @@
-// backend/routes/materialRoutes.js
+// backend/routes/materialRoutes.js (ACTUALIZADO para subir imagen)
 
 const express = require('express');
 const router = express.Router();
@@ -7,29 +7,27 @@ const {
     getAllMaterialsAdmin, 
     createMaterial, 
     updateMaterial, 
-    getMaterialById
+    getMaterialById,
+    deleteMaterial
 } = require('../controllers/materialController');
 const { protect, admin } = require('../middleware/authMiddleware');
+const { uploadMaterialImage } = require('../middleware/uploadMiddleware'); 
 
-// --- RUTAS PÚBLICAS Y GENERALES (deben ir al principio) ---
+// --- RUTAS PÚBLICAS Y GENERALES ---
 
-// 1. GET /api/materiales - Catálogo Público (sin proteger, soporta ?q=)
-router.get('/', getMaterials); 
-
-// 2. GET /api/materiales/admin - Obtener todos para el Dashboard (Ruta de Admin)
+router.get('/', getMaterials); // CLAVE: Llama a la función que ahora está correctamente definida
 router.get('/admin', protect, admin, getAllMaterialsAdmin); 
-
-// --- RUTA CON PARÁMETRO (debe ir al final para no 'atrapar' las anteriores) ---
-
-// 3. GET /api/materiales/:id - Detalle de Material (PÚBLICO)
 router.get('/:id', getMaterialById); 
 
-// --- RUTAS DE ADMINISTRACIÓN RESTANTES ---
+// --- RUTAS DE ADMINISTRACIÓN ---
 
 // 4. POST /api/materiales/admin - Crear nuevo material
-router.post('/admin', protect, admin, createMaterial);
+router.post('/admin', protect, admin, uploadMaterialImage, createMaterial);
 
 // 5. PUT /api/materiales/admin/:id - Actualizar material
 router.put('/admin/:id', protect, admin, updateMaterial);
+
+// 6. DELETE /api/materiales/admin/:id - Inactivar material (Soft Delete)
+router.delete('/admin/:id', protect, admin, deleteMaterial); 
 
 module.exports = router;

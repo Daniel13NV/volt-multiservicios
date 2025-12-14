@@ -1,127 +1,169 @@
-// backend/controllers/materialController.js
+// backend/controllers/materialController.js (CORREGIDO y UNIFICADO)
 
 const { pool } = require('../config/db');
 
-// --- 1. Obtener Materiales (Público, con filtro/búsqueda) ---
-exports.getMaterials = async (req, res) => {
-    const { q } = req.query; 
-
-    let query = 'SELECT * FROM Materiales WHERE stock > 0';
-    let params = [];
-
-    if (q) {
-        const searchPattern = `%${q}%`;
-        query += ' AND (nombre LIKE ? OR descripcion LIKE ? OR categoria LIKE ?)';
-        params.push(searchPattern, searchPattern, searchPattern);
-    }
-    
-    query += ' ORDER BY nombre ASC'; 
-
-    try {
-        const [rows] = await pool.execute(query, params);
-        res.json(rows);
-    } catch (error) {
-        console.error('Error al obtener materiales para catálogo:', error);
-        res.status(500).json({ message: 'Error al cargar el catálogo de materiales.' });
-    }
-};
-
-// --- 2. Obtener TODOS los Materiales (Admin) ---
-exports.getAllMaterialsAdmin = async (req, res) => {
-    try {
-        const [rows] = await pool.execute('SELECT * FROM Materiales ORDER BY id DESC');
-        res.json(rows);
-    } catch (error) {
-        console.error('Error al obtener todos los materiales para admin:', error);
-        res.status(500).json({ message: 'Error al cargar la lista de materiales.' });
-    }
-};
-
-// --- 3. Crear Material (Admin) ---
+// @desc    Obtener materiales del catálogo (Público, con filtro opcional)
+// @route   GET /api/materiales?q=query
+// @access  Public
 exports.createMaterial = async (req, res) => {
-    const { nombre, descripcion, precio_unitario, stock, categoria, imagen_url } = req.body;
-
+    // Si Multer subió un archivo, req.file contendrá la información.
+    // Si no se sube archivo, es null. Reemplazamos separadores de ruta.
+    const imagenPath = req.file ? req.file.path.replace(/\\/g, '/') : null; 
+    
+    // OBTENER DATOS DE TEXTO desde req.body
+    const { nombre, descripcion, precio_unitario, stock, categoria } = req.body;
+    
+    // Simple validación
     if (!nombre || !precio_unitario || !stock || !categoria) {
-        return res.status(400).json({ message: 'Faltan campos obligatorios: nombre, precio, stock y categoría.' });
+        return res.status(400).json({ message: 'Faltan campos obligatorios en el formulario.' });
     }
 
     try {
-        const query = `
-            INSERT INTO Materiales (nombre, descripcion, precio_unitario, stock, categoria, imagen_url)
-            VALUES (?, ?, ?, ?, ?, ?)
-        `;
-        const [result] = await pool.execute(query, [nombre, descripcion, precio_unitario, stock, categoria, imagen_url || null]);
+        const query = `INSERT INTO Materiales (nombre, descripcion, precio_unitario, stock, categoria, imagen_url, activo) 
+                       VALUES (?, ?, ?, ?, ?, ?, 1)`;
+        // Usamos imagenPath (que será la ruta local o NULL)
+        const [result] = await pool.execute(query, [nombre, descripcion, precio_unitario, stock, categoria, imagenPath, 1]); 
 
         res.status(201).json({ 
-            message: 'Material agregado exitosamente al inventario.', 
-            materialId: result.insertId 
+            id: result.insertId, 
+            nombre, 
+            imagen_url: imagenPath, // Devuelve la ruta guardada
+            message: 'Material creado exitosamente.' 
         });
     } catch (error) {
-        console.error('Error al crear nuevo material:', error);
-        res.status(500).json({ message: 'Error interno del servidor al añadir el material.' });
+        console.error("Error al crear material en BD:", error);
+        res.status(500).json({ message: 'Error interno al crear material. Verifique tipos de datos de la base de datos.' });
     }
 };
 
-// --- 4. Actualizar Material (Admin) ---
+// @desc    Obtener todos los materiales (incluidos agotados e inactivos) para Admin
+// @route   GET /api/materiales/admin
+// @access  Private/Admin
+exports.getAllMaterialsAdmin = async (req, res) => {
+    try {
+        const query = 'SELECT * FROM Materiales'; 
+        const [rows] = await pool.execute(query);
+        res.json(rows);
+    } catch (error) {
+        console.error("Error al obtener todos los materiales:", error);
+        res.status(500).json({ message: 'Error interno del servidor.' });
+    }
+};
+
+// @desc    Obtener un material por ID (Público)
+// @route   GET /api/materiales/:id
+// @access  Public
+exports.getMaterialById = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const query = 'SELECT * FROM Materiales WHERE id = ? AND activo = 1'; 
+        const [rows] = await pool.execute(query, [id]);
+        
+        if (rows.length === 0) {
+            return res.status(404).json({ message: 'Material no encontrado o inactivo.' });
+        }
+        
+        res.json(rows[0]);
+    } catch (error) {
+        console.error("Error al obtener material por ID:", error);
+        res.status(500).json({ message: 'Error interno del servidor.' });
+    }
+};
+
+
+// @desc    Crear un nuevo material (CON SUBIDA DE IMAGEN MULTER)
+// @route   POST /api/materiales/admin
+// @access  Private/Admin
+exports.createMaterial = async (req, res) => {
+    // Si Multer subió un archivo, req.file contendrá la información.
+    const imagenPath = req.file ? req.file.path.replace(/\\/g, '/') : null; 
+    
+    // Los otros campos vienen de req.body
+    const { nombre, descripcion, precio_unitario, stock, categoria } = req.body;
+    
+    if (!nombre || !precio_unitario || !stock || !categoria) {
+        return res.status(400).json({ message: 'Faltan campos obligatorios.' });
+    }
+
+    try {
+        // Se inserta con activo = 1 por defecto
+        const query = `INSERT INTO Materiales (nombre, descripcion, precio_unitario, stock, categoria, imagen_url, activo) 
+                       VALUES (?, ?, ?, ?, ?, ?, 1)`; 
+        // Usamos imagenPath (la ruta local guardada por Multer)
+        const [result] = await pool.execute(query, [nombre, descripcion, precio_unitario, stock, categoria, imagenPath, 1]); 
+
+        res.status(201).json({ 
+            id: result.insertId, 
+            nombre, 
+            imagen_url: imagenPath, // Devuelve la ruta guardada
+            message: 'Material creado exitosamente.' 
+        });
+    } catch (error) {
+        console.error("Error al crear material:", error);
+        res.status(500).json({ message: 'Error interno al crear material.' });
+    }
+};
+
+
+// @desc    Actualizar un material existente (incluye reactivación si se envía 'activo')
+// @route   PUT /api/materiales/admin/:id
+// @access  Private/Admin
 exports.updateMaterial = async (req, res) => {
     const { id } = req.params;
-    const { nombre, descripcion, precio_unitario, stock, categoria, imagen_url } = req.body;
+    const { nombre, descripcion, precio_unitario, stock, categoria, imagen_url, activo } = req.body; 
 
     if (!nombre || !precio_unitario || !stock || !categoria) {
+         if (activo !== undefined) {
+             try {
+                const updateActiveQuery = `UPDATE Materiales SET activo = ? WHERE id = ?`;
+                await pool.execute(updateActiveQuery, [activo, id]);
+                return res.json({ message: `Material ID ${id} estado activo actualizado.` });
+            } catch (error) {
+                console.error("Error al actualizar solo el estado activo:", error);
+                return res.status(500).json({ message: 'Error interno al actualizar solo el estado activo.' });
+            }
+        }
         return res.status(400).json({ message: 'Faltan campos obligatorios para la actualización.' });
     }
 
     try {
-        const query = `
-            UPDATE Materiales SET 
-                nombre = ?, 
-                descripcion = ?, 
-                precio_unitario = ?, 
-                stock = ?, 
-                categoria = ?, 
-                imagen_url = ?
-            WHERE id = ?
-        `;
-        const [result] = await pool.execute(query, [
-            nombre, 
-            descripcion, 
-            precio_unitario, 
-            stock, 
-            categoria, 
-            imagen_url || null, 
-            id
-        ]);
+        const query = `UPDATE Materiales SET nombre = ?, descripcion = ?, precio_unitario = ?, stock = ?, categoria = ?, imagen_url = ?, activo = ?
+                       WHERE id = ?`;
+        
+        const finalActivo = activo === undefined ? 1 : activo; 
+
+        const [result] = await pool.execute(query, [nombre, descripcion, precio_unitario, stock, categoria, imagen_url, finalActivo, id]);
 
         if (result.affectedRows === 0) {
-            return res.status(404).json({ message: 'Material no encontrado o sin cambios.' });
+            return res.status(404).json({ message: 'Material no encontrado para actualizar.' });
         }
 
         res.json({ message: `Material ID ${id} actualizado exitosamente.` });
     } catch (error) {
-        console.error('Error al actualizar material:', error);
-        res.status(500).json({ message: 'Error interno del servidor al actualizar el material.' });
+        console.error("Error al actualizar material:", error);
+        res.status(500).json({ message: 'Error interno al actualizar material.' });
     }
 };
 
-// --- 5. NUEVA FUNCIÓN: Obtener un Material por ID (GET /api/materiales/:id) - RUTA PÚBLICA
-exports.getMaterialById = async (req, res) => {
-    const { id } = req.params;
-    try {
-        const [rows] = await pool.execute('SELECT * FROM Materiales WHERE id = ? AND stock > 0', [id]);
 
-        if (rows.length === 0) {
-            return res.status(404).json({ message: 'Material no encontrado o agotado.' });
+// @desc    Inactivar/Eliminar Lógicamente un Material (Soft Delete)
+// @route   DELETE /api/materiales/admin/:id
+// @access  Private/Admin
+exports.deleteMaterial = async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        // Cambiar DELETE por UPDATE activo = 0 (FALSE)
+        const query = 'UPDATE Materiales SET activo = 0 WHERE id = ?'; 
+        const [result] = await pool.execute(query, [id]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Material no encontrado.' });
         }
-        
-        // Asegurar que el precio sea float para el frontend
-        const material = {
-            ...rows[0],
-            precio_unitario: parseFloat(rows[0].precio_unitario)
-        };
-        
-        res.json(material);
+
+        res.json({ message: `Material ID ${id} marcado como inactivo (Soft Delete) exitosamente.` });
     } catch (error) {
-        console.error('Error al obtener material por ID:', error);
-        res.status(500).json({ message: 'Error al cargar el detalle del material.' });
+        console.error('Error al inactivar material:', error);
+        res.status(500).json({ message: 'Error interno al inactivar el material.' });
     }
 };

@@ -1,64 +1,40 @@
-// backend/server.js
-
-// Cargar las variables de entorno al inicio
-require('dotenv').config(); 
+// backend/server.js (COMPLETO y CORREGIDO)
 
 const express = require('express');
+const dotenv = require('dotenv');
+const cors = require('cors');
+const path = require('path'); // Importar path para manejar rutas de archivos
+
+dotenv.config();
+
 const app = express();
-const port = 3001; // Puerto del backend
-const cors = require('cors'); // <--- NUEVA IMPORTACIÓN
-// =======================================================
-// 1. IMPORTAR TODAS LAS RUTAS
-// =======================================================
 
+// Middlewares
+app.use(cors({ origin: 'http://localhost:5173' })); // Permite la conexión desde el frontend
+app.use(express.json()); // Permite aceptar datos JSON
+app.use(express.urlencoded({ extended: true })); // Permite aceptar datos de formulario (url-encoded)
+
+// --- CLAVE: CONFIGURACIÓN DE CARPETA ESTÁTICA PARA IMÁGENES SUBIDAS ---
+// Esto permite que el frontend acceda a las imágenes en http://localhost:3001/uploads/nombre-de-imagen.jpg
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// --- Rutas ---
+const userRoutes = require('./routes/userRoutes');
 const materialRoutes = require('./routes/materialRoutes');
-const clienteRoutes = require('./routes/clienteRoutes'); 
-const servicioRoutes = require('./routes/servicioRoutes'); 
-const pedidoRoutes = require('./routes/pedidoRoutes'); 
+const orderRoutes = require('./routes/orderRoutes');
+const serviceRoutes = require('./routes/serviceRoutes');
 
-// =======================================================
-// 2. MIDDLEWARE
-// =======================================================
-const corsOptions = {
-    // Permite al frontend (que correrá en 5173) acceder a la API
-    origin: 'http://localhost:5173', 
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    credentials: true,
-};
-app.use(cors(corsOptions)); // <--- NUEVO MIDDLEWARE DE CORS
+app.use('/api/users', userRoutes);
+app.use('/api/materiales', materialRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/services', serviceRoutes);
 
-// Middleware para parsear JSON en el cuerpo de las peticiones (fundamental para POST/PUT)
-app.use(express.json());
 
-// NOTA: Se comenta testConnection() porque ya se verificó la conexión.
-// const { testConnection } = require('./config/db'); 
-// testConnection(); 
-
-// =======================================================
-// 3. CONECTAR RUTAS AL SERVIDOR
-// =======================================================
-
-// Rutas para la gestión de Inventario (CRUD)
-app.use('/api/materiales', materialRoutes); 
-
-// Rutas para Autenticación, Registro y Perfil de Clientes
-app.use('/api/clientes', clienteRoutes); 
-
-// Rutas para Solicitud y Gestión de Servicios (Leads)
-app.use('/api/servicios', servicioRoutes); 
-
-// Rutas para la Creación y Seguimiento de Pedidos (E-commerce)
-app.use('/api/pedidos', pedidoRoutes); 
-
-// =======================================================
-// 4. PUNTO DE ENTRADA Y ESCUCHA
-// =======================================================
-
-// Ruta de Prueba para verificar que la API esté viva
+// Ruta de prueba
 app.get('/', (req, res) => {
-    res.send('API de Volt Multiservicios funcionando! Endpoints disponibles en /api/...');
+    res.send('API está corriendo...');
 });
 
-app.listen(port, () => {
-    console.log(`Servidor de Volt Multiservicios escuchando en http://localhost:${port}`);
-});
+const PORT = process.env.PORT || 3001;
+
+app.listen(PORT, () => console.log(`Servidor corriendo en el puerto ${PORT}`));
