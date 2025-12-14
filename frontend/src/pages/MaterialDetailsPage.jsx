@@ -1,4 +1,4 @@
-// frontend/src/pages/MaterialDetailsPage.jsx (CORREGIDO)
+// frontend/src/pages/MaterialDetailsPage.jsx (CORREGIDO - Precio y URL de imagen)
 
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
@@ -8,22 +8,21 @@ import { useCart } from '../context/CartContext';
 
 const MaterialDetailsPage = () => {
     const { id } = useParams();
-    
-    // CORRECCIÓN CLAVE: Desestructurar addItemToCart desde useCart()
     const { addItemToCart } = useCart(); 
     
     const [material, setMaterial] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [quantity, setQuantity] = useState(1); 
+    
+    // Define la URL base de tu backend
+    const BASE_URL = 'http://localhost:3001/'; 
 
     useEffect(() => {
         const fetchMaterial = async () => {
             try {
-                // Usamos la ruta pública /api/materiales/:id
                 const url = `${API_ROUTES.MATERIALS}/${id}`;
                 const response = await axios.get(url);
-                
                 setMaterial(response.data);
 
             } catch (err) {
@@ -41,7 +40,6 @@ const MaterialDetailsPage = () => {
     }, [id]);
 
     const handleAddToCart = () => {
-        // CORRECCIÓN CLAVE: Verificamos que addItemToCart existe
         if (material && addItemToCart) { 
             addItemToCart(material, quantity);
             alert(`${quantity} ${material.nombre} añadido al carrito.`);
@@ -56,7 +54,6 @@ const MaterialDetailsPage = () => {
         return <div className="error-message">{error}</div>;
     }
 
-    // Si el material es nulo después de cargar (por ejemplo, 404), mostramos un mensaje final
     if (!material) {
          return <div className="error-message">Detalles del producto no disponibles.</div>;
     }
@@ -64,14 +61,20 @@ const MaterialDetailsPage = () => {
     return (
         <div className="material-details-page">
             <div className="product-card-details">
-                <img src={material.imagen_url || '/placeholder.png'} alt={material.nombre} className="product-image-details" />
+                <img 
+                    // CLAVE: Usa la BASE_URL + la ruta relativa guardada (uploads/archivo.jpg)
+                    src={material.imagen_url ? BASE_URL + material.imagen_url : '/placeholder.png'} 
+                    alt={material.nombre} 
+                    className="product-image-details" 
+                />
                 
                 <div className="product-info-details">
                     <h1>{material.nombre}</h1>
                     <p className="product-category">Categoría: <strong>{material.categoria}</strong></p>
                     
                     <div className="product-price">
-                        Precio: <span>${material.precio_unitario.toFixed(2)}</span>
+                        {/* CORRECCIÓN: Usar parseFloat() para evitar TypeError */}
+                        Precio: <span>${parseFloat(material.precio_unitario).toFixed(2)}</span> 
                     </div>
 
                     <p className="product-stock">

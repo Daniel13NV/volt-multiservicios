@@ -1,40 +1,31 @@
-// backend/controllers/materialController.js (CORREGIDO y UNIFICADO)
+// backend/controllers/materialController.js (COMPLETO y CORREGIDO - Subida/Soft Delete)
 
 const { pool } = require('../config/db');
 
 // @desc    Obtener materiales del catálogo (Público, con filtro opcional)
 // @route   GET /api/materiales?q=query
 // @access  Public
-exports.createMaterial = async (req, res) => {
-    // Si Multer subió un archivo, req.file contendrá la información.
-    // Si no se sube archivo, es null. Reemplazamos separadores de ruta.
-    const imagenPath = req.file ? req.file.path.replace(/\\/g, '/') : null; 
-    
-    // OBTENER DATOS DE TEXTO desde req.body
-    const { nombre, descripcion, precio_unitario, stock, categoria } = req.body;
-    
-    // Simple validación
-    if (!nombre || !precio_unitario || !stock || !categoria) {
-        return res.status(400).json({ message: 'Faltan campos obligatorios en el formulario.' });
-    }
+exports.getMaterials = async (req, res) => {
+    const { q } = req.query; 
 
     try {
-        const query = `INSERT INTO Materiales (nombre, descripcion, precio_unitario, stock, categoria, imagen_url, activo) 
-                       VALUES (?, ?, ?, ?, ?, ?, 1)`;
-        // Usamos imagenPath (que será la ruta local o NULL)
-        const [result] = await pool.execute(query, [nombre, descripcion, precio_unitario, stock, categoria, imagenPath, 1]); 
+        let query = 'SELECT * FROM Materiales WHERE stock > 0 AND activo = 1'; 
+        let params = [];
 
-        res.status(201).json({ 
-            id: result.insertId, 
-            nombre, 
-            imagen_url: imagenPath, // Devuelve la ruta guardada
-            message: 'Material creado exitosamente.' 
-        });
+        if (q) {
+            query += ' AND (nombre LIKE ? OR descripcion LIKE ?)';
+            params.push(`%${q}%`, `%${q}%`);
+        }
+        
+        const [rows] = await pool.execute(query, params);
+        res.json(rows);
+
     } catch (error) {
-        console.error("Error al crear material en BD:", error);
-        res.status(500).json({ message: 'Error interno al crear material. Verifique tipos de datos de la base de datos.' });
+        console.error("Error al obtener materiales:", error);
+        res.status(500).json({ message: 'Error interno del servidor.' });
     }
 };
+
 
 // @desc    Obtener todos los materiales (incluidos agotados e inactivos) para Admin
 // @route   GET /api/materiales/admin
@@ -75,32 +66,37 @@ exports.getMaterialById = async (req, res) => {
 // @route   POST /api/materiales/admin
 // @access  Private/Admin
 exports.createMaterial = async (req, res) => {
-    // Si Multer subió un archivo, req.file contendrá la información.
-    const imagenPath = req.file ? req.file.path.replace(/\\/g, '/') : null; 
     
-    // Los otros campos vienen de req.body
+    let urlPublicaImagen = null; 
+    
     const { nombre, descripcion, precio_unitario, stock, categoria } = req.body;
-    
+
+    // --- CORRECCIÓN CLAVE: EXTRAER URL PÚBLICA DE MULTER ---
+    if (req.file) {
+        const fileName = req.file.filename; 
+        urlPublicaImagen = `uploads/${fileName}`; // Guarda la ruta que es accesible por /uploads/
+    }
+    // --------------------------------------------------------
+
     if (!nombre || !precio_unitario || !stock || !categoria) {
-        return res.status(400).json({ message: 'Faltan campos obligatorios.' });
+        return res.status(400).json({ message: 'Faltan campos obligatorios en el formulario.' });
     }
 
     try {
-        // Se inserta con activo = 1 por defecto
         const query = `INSERT INTO Materiales (nombre, descripcion, precio_unitario, stock, categoria, imagen_url, activo) 
-                       VALUES (?, ?, ?, ?, ?, ?, 1)`; 
-        // Usamos imagenPath (la ruta local guardada por Multer)
-        const [result] = await pool.execute(query, [nombre, descripcion, precio_unitario, stock, categoria, imagenPath, 1]); 
+                       VALUES (?, ?, ?, ?, ?, ?, 1)`;
+        
+        const [result] = await pool.execute(query, [nombre, descripcion, precio_unitario, stock, categoria, urlPublicaImagen, 1]); 
 
         res.status(201).json({ 
             id: result.insertId, 
             nombre, 
-            imagen_url: imagenPath, // Devuelve la ruta guardada
+            imagen_url: urlPublicaImagen, 
             message: 'Material creado exitosamente.' 
         });
     } catch (error) {
         console.error("Error al crear material:", error);
-        res.status(500).json({ message: 'Error interno al crear material.' });
+        res.status(500).json({ message: 'Error interno al crear material. El problema puede persistir si la conexión a la DB falla o el archivo es inválido.' });
     }
 };
 
@@ -153,7 +149,6 @@ exports.deleteMaterial = async (req, res) => {
     const { id } = req.params;
 
     try {
-        // Cambiar DELETE por UPDATE activo = 0 (FALSE)
         const query = 'UPDATE Materiales SET activo = 0 WHERE id = ?'; 
         const [result] = await pool.execute(query, [id]);
 

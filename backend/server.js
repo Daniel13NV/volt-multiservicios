@@ -1,21 +1,20 @@
-// backend/server.js (COMPLETO y CORREGIDO)
+// backend/server.js (COMPLETO y CORREGIDO con Mapeo de Clientes)
 
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
-const path = require('path'); // Importar path para manejar rutas de archivos
+const path = require('path'); 
 
 dotenv.config();
 
 const app = express();
 
 // Middlewares
-app.use(cors({ origin: 'http://localhost:5173' })); // Permite la conexión desde el frontend
-app.use(express.json()); // Permite aceptar datos JSON
-app.use(express.urlencoded({ extended: true })); // Permite aceptar datos de formulario (url-encoded)
+app.use(cors({ origin: 'http://localhost:5173' })); 
+app.use(express.json()); 
+app.use(express.urlencoded({ extended: true })); 
 
 // --- CLAVE: CONFIGURACIÓN DE CARPETA ESTÁTICA PARA IMÁGENES SUBIDAS ---
-// Esto permite que el frontend acceda a las imágenes en http://localhost:3001/uploads/nombre-de-imagen.jpg
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // --- Rutas ---
@@ -24,7 +23,9 @@ const materialRoutes = require('./routes/materialRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const serviceRoutes = require('./routes/serviceRoutes');
 
-app.use('/api/users', userRoutes);
+// --- CAMBIO CLAVE: Mapeamos /api/clientes a userRoutes ---
+app.use('/api/clientes', userRoutes); // Esto resuelve el error 404 del login
+
 app.use('/api/materiales', materialRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/services', serviceRoutes);
